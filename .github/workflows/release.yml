@@ -27,30 +27,31 @@ jobs:
           java-version: '25'
           cache: 'gradle'
 
-      - name: Build and Run Tests
-        run: ./gradlew clean build
-
       - name: Bump Version and Tag
         if: github.event_name == 'push'
         id: tag_version
-        uses: ./
+        uses: caffeine-soft/github-release-java@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: patch
-          create_annotated_tag: false
+          create_annotated_tag: true
+
+      - name: Build and Run Tests
+        run: ./gradlew clean build
 
       - name: Rename JAR for Release
         if: github.event_name == 'push' && steps.tag_version.outputs.new_tag != ''
-        run: cp build/libs/github-tag-java.jar build/libs/github-tag-java-${{ steps.tag_version.outputs.new_version }}.jar
+        run: cp build/libs/github-release-java.jar build/libs/github-release-java-${{ steps.tag_version.outputs.new_version }}.jar
 
-      - name: Create GitHub Release
-        if: github.event_name == 'push' && steps.tag_version.outputs.new_tag != ''
-        uses: ncipollo/release-action@v1
+      - name: Create Release
+        if: steps.tag_version.outputs.new_tag != ''
+        uses: caffeine-soft/github-release-java@main
         with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.tag_version.outputs.new_tag }}
           name: v${{ steps.tag_version.outputs.new_version }}
           body: ${{ steps.tag_version.outputs.changelog }}
-          artifacts: "build/libs/github-tag-java-${{ steps.tag_version.outputs.new_version }}.jar"
+          artifacts: "build/libs/github-release-java-${{ steps.tag_version.outputs.new_version }}.jar"
       - name: Publish Executable Tags
         if: github.event_name == 'push' && steps.tag_version.outputs.new_tag != ''
         run: |
@@ -60,7 +61,7 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             
             # Force Git to track the compiled generic JAR (ignoring the .gitignore)
-            git add -f build/libs/github-tag-java.jar
+            git add -f build/libs/github-release-java.jar
             
             # Commit it only to the local runner
             git commit -m "build: compile action for ${{ steps.tag_version.outputs.new_tag }}"

@@ -1,0 +1,53 @@
+name: 'GitHub Release Java'
+description: 'Create a GitHub Release and upload artifacts using pure Java 25.'
+author: 'CaffeineSoft'
+
+inputs:
+  github_token:
+    description: 'Required for permission to create releases.'
+    required: true
+    default: ${{ github.token }}
+  tag:
+    description: 'The tag name for the release.'
+    required: true
+  name:
+    description: 'The name of the release. Defaults to the tag name.'
+    required: false
+  body:
+    description: 'Text describing the contents of the release.'
+    required: false
+  draft:
+    description: 'Creates a draft release if set to true.'
+    required: false
+    default: 'false'
+  prerelease:
+    description: 'Identifies the release as a prerelease if set to true.'
+    required: false
+    default: 'false'
+  artifacts:
+    description: 'Comma-separated list of file paths or glob patterns to upload (e.g. build/libs/*.jar).'
+    required: false
+
+outputs:
+  release_id:
+    description: 'The ID of the created release.'
+    value: ${{ steps.run-java.outputs.release_id }}
+  release_url:
+    description: 'The HTML URL of the created release.'
+    value: ${{ steps.run-java.outputs.release_url }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Execute Java Action
+      id: run-java
+      shell: bash
+      run: java -jar "$GITHUB_ACTION_PATH/build/libs/github-release-java.jar"
+      env:
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_TAG: ${{ inputs.tag }}
+        INPUT_NAME: ${{ inputs.name }}
+        INPUT_BODY: ${{ inputs.body }}
+        INPUT_DRAFT: ${{ inputs.draft }}
+        INPUT_PRERELEASE: ${{ inputs.prerelease }}
+        INPUT_ARTIFACTS: ${{ inputs.artifacts }}
