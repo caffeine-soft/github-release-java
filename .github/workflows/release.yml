@@ -1,0 +1,74 @@
+name: CI/CD & Release
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'oracle'
+          java-version: '25'
+          cache: 'gradle'
+
+      - name: Build and Run Tests
+        run: ./gradlew clean build
+
+      - name: Bump Version and Tag
+        if: github.event_name == 'push'
+        id: tag_version
+        uses: ./
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+          create_annotated_tag: false
+
+      - name: Rename JAR for Release
+        if: github.event_name == 'push' && steps.tag_version.outputs.new_tag != ''
+        run: cp build/libs/github-tag-java.jar build/libs/github-tag-java-${{ steps.tag_version.outputs.new_version }}.jar
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && steps.tag_version.outputs.new_tag != ''
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: v${{ steps.tag_version.outputs.new_version }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+          artifacts: "build/libs/github-tag-java-${{ steps.tag_version.outputs.new_version }}.jar"
+      - name: Publish Executable Tags
+        if: github.event_name == 'push' && steps.tag_version.outputs.new_tag != ''
+        run: |
+            MAJOR_VERSION=$(echo "${{ steps.tag_version.outputs.new_version }}" | cut -d'.' -f1)
+            
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            
+            # Force Git to track the compiled generic JAR (ignoring the .gitignore)
+            git add -f build/libs/github-tag-java.jar
+            
+            # Commit it only to the local runner
+            git commit -m "build: compile action for ${{ steps.tag_version.outputs.new_tag }}"
+            
+            # Move the exact version tag and the floating major tag to this new commit
+            git tag -fa "${{ steps.tag_version.outputs.new_tag }}" -m "Release ${{ steps.tag_version.outputs.new_tag }}"
+            git tag -fa "v${MAJOR_VERSION}" -m "Update v${MAJOR_VERSION} tag"
+            
+            # Push the tags back to GitHub
+            git push origin "${{ steps.tag_version.outputs.new_tag }}" --force
+            git push origin "v${MAJOR_VERSION}" --force
