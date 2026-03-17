@@ -30,7 +30,7 @@ jobs:
       - name: Bump Version and Tag
         if: github.event_name == 'push'
         id: tag_version
-        uses: caffeine-soft/github-release-java@main
+        uses: caffeine-soft/github-tag-java@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: patch
@@ -45,7 +45,7 @@ jobs:
 
       - name: Create Release
         if: steps.tag_version.outputs.new_tag != ''
-        uses: caffeine-soft/github-release-java@main
+        uses: ./
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.tag_version.outputs.new_tag }}
