@@ -56,7 +56,17 @@ public class Main {
             pattern = pattern.trim();
             if (pattern.isEmpty()) continue;
 
-            String globPattern = pattern.contains("*") ? "glob:" + pattern : "glob:**/" + pattern;
+            if (!pattern.contains("*")) {
+                Path directPath = baseDir.resolve(pattern).normalize();
+                if (Files.isRegularFile(directPath)) {
+                    matchedFiles.add(directPath);
+                } else {
+                    System.err.println("Warning: Artifact not found at exact path -> " + pattern);
+                }
+                continue;
+            }
+
+            String globPattern = "glob:" + pattern;
             PathMatcher matcher = FileSystems.getDefault().getPathMatcher(globPattern);
 
             Files.walk(baseDir)
@@ -64,6 +74,13 @@ public class Main {
                     .filter(p -> matcher.matches(baseDir.relativize(p)))
                     .forEach(matchedFiles::add);
         }
+
+        if (matchedFiles.isEmpty()) {
+            System.err.println("Warning: No artifacts matched the input: " + artifactsInput);
+        } else {
+            System.out.println("Found " + matchedFiles.size() + " artifact(s) to upload.");
+        }
+
         return matchedFiles;
     }
 
