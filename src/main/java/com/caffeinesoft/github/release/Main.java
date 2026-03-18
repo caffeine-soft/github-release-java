@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 
 public class Main {
-    public static void main(String[] args) {
+    static void main() {
         try {
             runAction();
         } catch (Exception e) {
@@ -37,8 +37,8 @@ public class Main {
 
         String uploadUrl = release.getString("upload_url");
 
-        System.out.println("::set-output name=release_id::" + release.getLong("id"));
-        System.out.println("::set-output name=release_url::" + release.getString("html_url"));
+        setOutput("release_id", String.valueOf(release.getLong("id")));
+        setOutput("release_url", release.getString("html_url"));
 
         if (!artifacts.isBlank()) {
             List<Path> filesToUpload = resolveArtifacts(artifacts);
@@ -65,6 +65,20 @@ public class Main {
                     .forEach(matchedFiles::add);
         }
         return matchedFiles;
+    }
+
+    private static void setOutput(String name, String value) {
+        String githubOutput = System.getenv("GITHUB_OUTPUT");
+        if (githubOutput != null && !githubOutput.isBlank()) {
+            try {
+                String outputLine = name + "=" + value + "\n";
+                Files.writeString(Path.of(githubOutput), outputLine, StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            } catch (IOException e) {
+                System.err.println("Failed to write to GITHUB_OUTPUT: " + e.getMessage());
+            }
+        } else {
+            System.out.println("::set-output name=" + name + "::" + value);
+        }
     }
 
     private static String getInput(String name) {
